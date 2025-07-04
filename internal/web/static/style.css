@@ -1,0 +1,5 @@
+/* You can add custom CSS here if needed, but Tailwind CSS handles most styling. */
+/* For example, custom fonts or more complex animations. */
+body {
+    font-family: 'Inter', sans-serif; /* Using Inter font as per instructions */
+}
