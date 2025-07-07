@@ -9,7 +9,8 @@ type VMInfo struct {
 	VMID           string `json:"vmId"`           // Unique ID of the VM
 	ImageName      string `json:"imageName"`      // Name of the image used for this VM
 	RuntimeSeconds int64  `json:"runtimeSeconds"` // How long the VM has been running in seconds
-	// Add more VM-specific details as needed (e.g., CPU, Memory allocation)
+	VMHostname     string `json:"vmHostname"`     // Hostname of the VM
+	VMIPAddress    string `json:"vmIpAddress"`    // IP address of the VM
 }
 
 // HeartbeatPayload represents the data sent by a Mac Mini in its heartbeat.
@@ -26,16 +27,40 @@ type HeartbeatPayload struct {
 	CachedImages    []string `json:"cachedImages"`    // List of VM image names cached on this Mac Mini
 }
 
-// NodeStatus represents the current state of a Mac Mini node,
-// maintained by the orchestrator.
+// NodeStatus represents the full status of a Mac Mini node, derived from heartbeats.
 type NodeStatus struct {
-	HeartbeatPayload
-	LastSeen time.Time `json:"lastSeen"` // Timestamp of the last received heartbeat
-	IsOnline bool      `json:"isOnline"` // True if the node is considered online
+	HeartbeatPayload           // Embeds all fields from the latest heartbeat
+	LastSeen         time.Time // Timestamp of the last received heartbeat
+	IsOnline         bool      // True if within offline timeout, false otherwise
 }
 
-// VMRequest defines the structure for requesting a new VM.
-type VMRequest struct {
-	ImageName string `json:"imageName"` // The name of the VM image required
-	// Add other VM configuration parameters here (e.g., CPU, Memory, Disk size)
+// VMProvisionCommand represents a command from the orchestrator to provision a VM.
+type VMProvisionCommand struct {
+	VMID                    string   `json:"vmId"`                    // Unique ID for the new VM
+	ImageName               string   `json:"imageName"`               // Image to use for the VM
+	RunnerRegistrationToken string   `json:"runnerRegistrationToken"` // GitHub Actions runner registration token
+	RunnerName              string   `json:"runnerName"`              // Unique name for the GitHub runner
+	RunnerLabels            []string `json:"runnerLabels"`            // Labels for the GitHub runner
+	// Add other VM configuration details
+}
+
+// VMDeleteCommand represents a command from the orchestrator to delete a VM.
+type VMDeleteCommand struct {
+	VMID string `json:"vmId"` // ID of the VM to delete
+}
+
+// JobStatus represents the status of a GitHub workflow job being managed by macvmorx.
+type JobStatus struct {
+	JobID                 int64      `json:"jobId"`                           // GitHub Workflow Job ID
+	RunnerName            string     `json:"runnerName"`                      // Name assigned to the GitHub Actions runner
+	ImageName             string     `json:"imageName"`                       // VM image requested for this job
+	Status                string     `json:"status"`                          // Current status (e.g., "queued", "provisioning", "running", "completed", "failed")
+	NodeID                string     `json:"nodeId,omitempty"`                // Mac Mini Node ID where the VM is/was running
+	VMID                  string     `json:"vmId,omitempty"`                  // VM ID on the Mac Mini
+	VMIPAddress           string     `json:"vmIpAddress,omitempty"`           // IP Address of the VM
+	Labels                []string   `json:"labels"`                          // Labels from the GitHub workflow job
+	QueueTime             time.Time  `json:"queueTime"`                       // When the job was queued on GitHub
+	ProvisioningStartTime *time.Time `json:"provisioningStartTime,omitempty"` // When VM provisioning started
+	VMStartTime           *time.Time `json:"vmStartTime,omitempty"`           // When the VM actually started running
+	EndTime               *time.Time `json:"endTime,omitempty"`               // When the job completed/failed
 }
