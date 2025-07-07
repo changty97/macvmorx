@@ -14,6 +14,7 @@ type Config struct {
 	MonitorInterval               time.Duration
 	GitHubWebhookSecret           string // GitHub Webhook secret for validation
 	GitHubRunnerRegistrationToken string // Static token for runner registration
+	LogFilePath                   string // NEW: Path to the log file
 
 	// Removed mTLS Configuration
 }
@@ -26,6 +27,7 @@ func LoadConfig() *Config {
 		MonitorInterval:               getEnvDuration("MACVMORX_MONITOR_INTERVAL", 5*time.Second),
 		GitHubWebhookSecret:           getEnv("GITHUB_WEBHOOK_SECRET", ""),
 		GitHubRunnerRegistrationToken: getEnv("GITHUB_RUNNER_REGISTRATION_TOKEN", ""),
+		LogFilePath:                   getEnv("MACVMORX_LOG_FILE", ""), // NEW: Default to empty (console)
 
 		// Removed mTLS Configuration Defaults
 	}

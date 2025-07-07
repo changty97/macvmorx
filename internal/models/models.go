@@ -34,12 +34,6 @@ type NodeStatus struct {
 	IsOnline         bool      // True if within offline timeout, false otherwise
 }
 
-// VMRequest defines the structure for requesting a new VM.
-type VMRequest struct {
-	ImageName string `json:"imageName"` // The name of the VM image required
-	// Add other VM configuration parameters here (e.g., CPU, Memory, Disk size)
-}
-
 // VMProvisionCommand represents a command from the orchestrator to provision a VM.
 type VMProvisionCommand struct {
 	VMID                    string   `json:"vmId"`                    // Unique ID for the new VM
@@ -53,4 +47,20 @@ type VMProvisionCommand struct {
 // VMDeleteCommand represents a command from the orchestrator to delete a VM.
 type VMDeleteCommand struct {
 	VMID string `json:"vmId"` // ID of the VM to delete
+}
+
+// JobStatus represents the status of a GitHub workflow job being managed by macvmorx.
+type JobStatus struct {
+	JobID                 int64      `json:"jobId"`                           // GitHub Workflow Job ID
+	RunnerName            string     `json:"runnerName"`                      // Name assigned to the GitHub Actions runner
+	ImageName             string     `json:"imageName"`                       // VM image requested for this job
+	Status                string     `json:"status"`                          // Current status (e.g., "queued", "provisioning", "running", "completed", "failed")
+	NodeID                string     `json:"nodeId,omitempty"`                // Mac Mini Node ID where the VM is/was running
+	VMID                  string     `json:"vmId,omitempty"`                  // VM ID on the Mac Mini
+	VMIPAddress           string     `json:"vmIpAddress,omitempty"`           // IP Address of the VM
+	Labels                []string   `json:"labels"`                          // Labels from the GitHub workflow job
+	QueueTime             time.Time  `json:"queueTime"`                       // When the job was queued on GitHub
+	ProvisioningStartTime *time.Time `json:"provisioningStartTime,omitempty"` // When VM provisioning started
+	VMStartTime           *time.Time `json:"vmStartTime,omitempty"`           // When the VM actually started running
+	EndTime               *time.Time `json:"endTime,omitempty"`               // When the job completed/failed
 }

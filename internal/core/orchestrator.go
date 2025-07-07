@@ -20,13 +20,14 @@ import (
 // Orchestrator is the central component responsible for managing Mac Mini nodes and VMs.
 type Orchestrator struct {
 	nodeStore  *store.NodeStore
-	cfg        *config.Config // Add config to access config values
-	httpClient *http.Client   // HTTP client for agent communication
-	mu         sync.Mutex     // Mutex for protecting orchestrator state if needed
+	jobStore   *store.JobStore // Added JobStore
+	cfg        *config.Config  // Add config to access config values
+	httpClient *http.Client    // HTTP client for agent communication
+	mu         sync.Mutex      // Mutex for protecting orchestrator state if needed
 }
 
 // NewOrchestrator creates a new Orchestrator instance.
-func NewOrchestrator(ns *store.NodeStore, cfg *config.Config) (*Orchestrator, error) {
+func NewOrchestrator(ns *store.NodeStore, js *store.JobStore, cfg *config.Config) (*Orchestrator, error) {
 	// Revert to simple HTTP client
 	httpClient := &http.Client{
 		Timeout: 10 * time.Second, // Timeout for agent communication
@@ -34,6 +35,7 @@ func NewOrchestrator(ns *store.NodeStore, cfg *config.Config) (*Orchestrator, er
 
 	return &Orchestrator{
 		nodeStore:  ns,
+		jobStore:   js,
 		cfg:        cfg,
 		httpClient: httpClient,
 	}, nil
@@ -53,6 +55,13 @@ func (o *Orchestrator) ScheduleVM(
 	defer o.mu.Unlock()
 
 	log.Printf("Attempting to schedule VM for GitHub job %d, image: %s, labels: %v", jobID, imageName, runnerLabels)
+
+	// Update job status to provisioning
+	o.jobStore.UpdateJobStatus(jobID, func(job *models.JobStatus) {
+		job.Status = "provisioning"
+		now := time.Now()
+		job.ProvisioningStartTime = &now
+	})
 
 	var (
 		nodeWithImageAvailable *models.NodeStatus = nil
@@ -99,6 +108,12 @@ func (o *Orchestrator) ScheduleVM(
 		targetNode = nodeForDownload
 	} else {
 		log.Println("No suitable node found for VM scheduling at this time.")
+		// Update job status to failed if no node found
+		o.jobStore.UpdateJobStatus(jobID, func(job *models.JobStatus) {
+			job.Status = "failed"
+			now := time.Now()
+			job.EndTime = &now
+		})
 		return "", errors.New("no suitable node found for VM scheduling")
 	}
 
@@ -117,10 +132,16 @@ func (o *Orchestrator) ScheduleVM(
 
 	err := o.InstructAgentToProvisionVM(targetNode.NodeID, provisionCmd)
 	if err != nil {
+		// Update job status to failed if agent instruction fails
+		o.jobStore.UpdateJobStatus(jobID, func(job *models.JobStatus) {
+			job.Status = "failed"
+			now := time.Now()
+			job.EndTime = &now
+		})
 		return "", fmt.Errorf("failed to instruct agent %s to provision VM: %w", targetNode.NodeID, err)
 	}
 
-	log.Printf("VM for job %d scheduled on node %s. Runner name: %s", jobID, targetNode.NodeID, runnerName)
+	log.Printf("Provision command sent to agent %s for VM %s", jobID, targetNode.NodeID) // Corrected log message
 	return targetNode.NodeID, nil
 }
 

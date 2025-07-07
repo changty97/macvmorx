@@ -26,15 +26,39 @@ func NewServer(port string, handler *api.Handlers, cfg *config.Config) *Server {
 	}
 }
 
+// corsMiddleware adds CORS headers to allow cross-origin requests.
+func corsMiddleware(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Allow requests from any origin during development.
+		// In production, you might want to restrict this to specific origins.
+		w.Header().Set("Access-Control-Allow-Origin", "*")
+		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, X-Requested-With, Authorization")
+
+		// Handle preflight requests
+		if r.Method == "OPTIONS" {
+			w.WriteHeader(http.StatusOK)
+			return
+		}
+
+		next.ServeHTTP(w, r)
+	})
+}
+
 // Start runs the HTTP server.
 func (s *Server) Start() {
 	router := mux.NewRouter()
 
-	// API routes
-	router.HandleFunc("/api/heartbeat", s.Handler.HandleHeartbeat).Methods("POST")
-	router.HandleFunc("/api/nodes", s.Handler.HandleGetNodes).Methods("GET")
+	// Apply CORS middleware to all API routes
+	apiRouter := router.PathPrefix("/api").Subrouter()
+	apiRouter.Use(corsMiddleware) // Apply CORS middleware here
 
-	// GitHub Webhook endpoint
+	// API routes
+	apiRouter.HandleFunc("/heartbeat", s.Handler.HandleHeartbeat).Methods("POST")
+	apiRouter.HandleFunc("/nodes", s.Handler.HandleGetNodes).Methods("GET")
+	apiRouter.HandleFunc("/jobs", s.Handler.HandleGetJobs).Methods("GET") // NEW: Jobs API endpoint
+
+	// GitHub Webhook endpoint (can also be behind CORS if needed, but typically not for webhooks)
 	router.HandleFunc("/webhook/github", s.Handler.HandleGitHubWebhook).Methods("POST")
 
 	// Serve static files for the web interface
@@ -48,7 +72,7 @@ func (s *Server) Start() {
 	// Revert to simple HTTP server
 	srv := &http.Server{
 		Addr:         addr,
-		Handler:      router,
+		Handler:      router, // Use the router with middleware
 		ReadTimeout:  10 * time.Second,
 		WriteTimeout: 10 * time.Second,
 		IdleTimeout:  120 * time.Second,

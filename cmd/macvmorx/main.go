@@ -1,6 +1,7 @@
 package main
 
 import (
+	"io"
 	"log"
 	"os"
 
@@ -25,6 +26,7 @@ func init() {
 	rootCmd.PersistentFlags().DurationVar(&cfg.MonitorInterval, "monitor-interval", cfg.MonitorInterval, "Interval for checking offline nodes")
 	rootCmd.PersistentFlags().StringVar(&cfg.GitHubWebhookSecret, "github-webhook-secret", cfg.GitHubWebhookSecret, "GitHub Webhook secret for validation")
 	rootCmd.PersistentFlags().StringVar(&cfg.GitHubRunnerRegistrationToken, "github-runner-registration-token", cfg.GitHubRunnerRegistrationToken, "Static GitHub Actions runner registration token")
+	rootCmd.PersistentFlags().StringVar(&cfg.LogFilePath, "log-file", cfg.LogFilePath, "Path to a file to write logs (e.g., /var/log/macvmorx.log)") // NEW: Log file flag
 	// Removed mTLS flags
 }
 
@@ -58,21 +60,37 @@ var statusCmd = &cobra.Command{
 }
 
 func startServer() {
+	// NEW: Configure logging to file if LogFilePath is provided
+	if cfg.LogFilePath != "" {
+		logFile, err := os.OpenFile(cfg.LogFilePath, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0644)
+		if err != nil {
+			log.Fatalf("Failed to open log file %s: %v", cfg.LogFilePath, err)
+		}
+		defer logFile.Close()
+		// Write logs to both file and console
+		mw := io.MultiWriter(os.Stdout, logFile)
+		log.SetOutput(mw)
+		log.Printf("Logging to file: %s", cfg.LogFilePath)
+	}
+
 	// Initialize the node store
 	nodeStore := store.NewNodeStore(cfg.OfflineTimeout)
 
-	// Initialize the heartbeat processor
-	hp := heartbeat.NewProcessor(nodeStore)
+	// Initialize the job store (NEW)
+	jobStore := store.NewJobStore()
+
+	// Initialize the heartbeat processor (pass jobStore now)
+	hp := heartbeat.NewProcessor(nodeStore, jobStore)
 	go hp.StartOfflineMonitor(cfg.MonitorInterval)
 
-	// Initialize the core orchestrator (no mTLS config needed now)
-	orch, err := core.NewOrchestrator(nodeStore, cfg)
+	// Initialize the core orchestrator (pass jobStore now)
+	orch, err := core.NewOrchestrator(nodeStore, jobStore, cfg)
 	if err != nil {
 		log.Fatalf("Failed to initialize orchestrator: %v", err)
 	}
 
-	// Initialize API handlers with all dependencies
-	apiHandlers := api.NewHandlers(cfg, hp, nodeStore, orch)
+	// Initialize API handlers with all dependencies (pass jobStore now)
+	apiHandlers := api.NewHandlers(cfg, hp, nodeStore, jobStore, orch)
 
 	// Initialize and start the web server (no mTLS config needed now)
 	ws := web.NewServer(cfg.WebPort, apiHandlers, cfg)
