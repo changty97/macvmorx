@@ -1,6 +1,6 @@
-macvmorx: macOS Virtual Machine Orchestrator
+# macvmorx: macOS Virtual Machine Orchestrator
 macvmorx is a lightweight, Kubernetes-like orchestrator designed to manage a fleet of macOS virtual machines running on Mac Mini hardware in a lab environment. It provides centralized monitoring of Mac Mini nodes, facilitates VM provisioning for ephemeral workloads like GitHub Actions runners, and offers a web interface for easy oversight.
-🌟 Features
+#🌟 Features
 Node Health Monitoring: Receives heartbeats from Mac Mini agents, providing real-time insights into CPU, memory, disk usage, and VM counts.
 Scalable Heartbeat Processing: Designed to efficiently handle heartbeats from 100+ Mac Mini systems.
 VM Lifecycle Management: Orchestrates the creation and deletion of ephemeral macOS virtual machines.
@@ -9,10 +9,11 @@ Web-based Dashboard: A user-friendly interface to visualize the status of all Ma
 Configurable Refresh Rates: The web dashboard allows selecting refresh intervals (5s, 30s, 60s, or manual).
 Efficient VM Image Management: Works in conjunction with the macvmorx-agent to manage large macOS VM images (DMG/IPSW) via a caching and LRU eviction strategy from GCP Cloud Storage.
 Command-Line Interface (CLI): Basic CLI for starting the server and future management tasks.
-🏗️ Architecture Overview
+# 🏗️ Architecture Overview
 macvmorx consists of two main components:
 macvmorx (Orchestrator - This Repository): The central server application written in Go. It receives heartbeats, maintains node state, implements scheduling logic, and serves the web dashboard and API.
 macvmorx-agent (Agent - Separate Repository): A Go application (or potentially Swift for deeper integration) that runs on each Mac Mini. It collects system metrics, manages local VM images (downloading from GCP, LRU caching), provisions/deletes VMs using macOS virtualization tools, and sends heartbeats to the orchestrator.
+```
 +-------------------+       +-------------------+       +-------------------+
 |   GitHub Actions  |       |   macvmorx Agent  |       |   macvmorx Agent  |
 |     Workflow      |       |  (Mac Mini #1)    |       |  (Mac Mini #N)    |
@@ -48,9 +49,9 @@ macvmorx-agent (Agent - Separate Repository): A Go application (or potentially S
           |
           +-----------------------------------------------------------------+
           (Image Downloads by macvmorx Agents)
+```
 
-
-🚀 Getting Started
+# 🚀 Getting Started
 Prerequisites
 Go 1.22+ installed
 Git
@@ -58,17 +59,17 @@ Git
 (For Image Management) A GCP Cloud Storage bucket configured with your VM images (DMG/IPSW files).
 Installation
 Clone the repository:
+```
 git clone https://github.com/your-username/macvmorx.git
 cd macvmorx
-
+```
 
 Initialize Go modules:
-go mod tidy
+`go mod tidy`
 
 
 Build the orchestrator executable:
-go build -o macvmorx ./cmd/macvmorx
-
+`go build -o macvmorx ./cmd/macvmorx`
 
 Configuration
 macvmorx can be configured using environment variables or command-line flags. Command-line flags take precedence.
